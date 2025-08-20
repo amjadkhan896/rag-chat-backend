@@ -4,14 +4,14 @@ import { AppService } from './app.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
-import { APP_GUARD, APP_FILTER } from '@nestjs/core';
+import { APP_GUARD } from '@nestjs/core';
 import { WinstonModule } from 'nest-winston';
 import { SessionsModule } from './sessions/sessions.module';
 import { MessagesModule } from './messages/messages.module';
 import { OpenaiModule } from './openai/openai.module';
 import { AuthMiddleware } from './auth/auth.middleware';
 import { ApiKeyMiddleware } from './middleware/api-key.middleware';
-import { AllExceptionsFilter } from './filters/all-exceptions.filter';
+
 import { winstonConfig } from './logger/winston-logger.config';
 
 @Module({
@@ -44,10 +44,6 @@ import { winstonConfig } from './logger/winston-logger.config';
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
-    },
-    {
-      provide: APP_FILTER,
-      useClass: AllExceptionsFilter,
     },
   ],
 })
