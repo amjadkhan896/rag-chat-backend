@@ -46,7 +46,7 @@ DB_USERNAME=postgres
 DB_PASSWORD=password
 DB_DATABASE=rag_chat_backend
 
-JWT_SECRET=change-me
+JWT_SECRET=test12345678
 
 OPENAI_API_KEY=your-openai-key
 
