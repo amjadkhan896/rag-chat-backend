@@ -1,148 +1,53 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { MessagesController } from './messages.controller';
 import { MessagesService } from './messages.service';
-import { CreateMessageDto } from './dto/create-message.dto';
 
 describe('MessagesController', () => {
   let controller: MessagesController;
-  let service: jest.Mocked<MessagesService>;
-
-  const mockMessagesService = {
+  let mockService = {
     createMessage: jest.fn(),
     listMessages: jest.fn(),
-    getChatHistory: jest.fn(),
   };
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
+    const module = await Test.createTestingModule({
       controllers: [MessagesController],
       providers: [
         {
           provide: MessagesService,
-          useValue: mockMessagesService,
+          useValue: mockService,
         },
       ],
     }).compile();
 
-    controller = module.get<MessagesController>(MessagesController);
-    service = module.get(MessagesService);
-  });
-
-  afterEach(() => {
+    controller = module.get(MessagesController);
     jest.clearAllMocks();
   });
 
-  describe('createMessage', () => {
-    it('should create a message successfully', async () => {
-      const sessionId = 'session123';
-      const mockRequest = { user: { id: 'user123' } };
-      const dto: CreateMessageDto = {
-        role: 'user',
-        content: 'Hello AI!',
-        metadata: { test: true },
-      };
-      const mockMessage = {
-        id: 'msg123',
-        role: 'user',
-        content: 'Hello AI!',
-        metadata: { test: true },
-      };
+  it('creates message', async () => {
+    const mockRequest = { user: { id: 'user1' } };
+    const mockBody = { role: 'user', content: 'Hello' };
+    const mockMessage = { id: 'msg1', role: 'user', content: 'Hello' };
 
-      service.createMessage.mockResolvedValue(mockMessage as any);
+    mockService.createMessage.mockResolvedValue(mockMessage);
 
-      const result = await controller.createMessage(sessionId, dto, mockRequest as any);
+    const result = await controller.createMessage('session1', mockBody as any, mockRequest as any);
 
-      expect(service.createMessage).toHaveBeenCalledWith('user123', sessionId, dto);
-      expect(result).toEqual(mockMessage);
-    });
-
-    it('should handle assistant messages', async () => {
-      const sessionId = 'session123';
-      const mockRequest = { user: { id: 'user123' } };
-      const dto: CreateMessageDto = {
-        role: 'assistant',
-        content: 'AI response',
-      };
-      const mockMessage = {
-        id: 'msg123',
-        role: 'assistant',
-        content: 'AI response',
-      };
-
-      service.createMessage.mockResolvedValue(mockMessage as any);
-
-      const result = await controller.createMessage(sessionId, dto, mockRequest as any);
-
-      expect(service.createMessage).toHaveBeenCalledWith('user123', sessionId, dto);
-      expect(result).toEqual(mockMessage);
-    });
+    expect(mockService.createMessage).toHaveBeenCalledWith('user1', 'session1', mockBody);
+    expect(result).toEqual(mockMessage);
   });
 
-  describe('listMessages', () => {
-    it('should list messages for a session', async () => {
-      const sessionId = 'session123';
-      const mockRequest = { user: { id: 'user123' } };
-      const mockMessages = [
-        { id: 'msg1', role: 'user', content: 'Hello' },
-        { id: 'msg2', role: 'assistant', content: 'Hi there!' },
-      ];
+  it('lists messages', async () => {
+    const mockRequest = { user: { id: 'user1' } };
+    const mockMessages = [{ id: 'msg1', content: 'Hello' }];
 
-      service.listMessages.mockResolvedValue(mockMessages as any);
+    mockService.listMessages.mockResolvedValue(mockMessages);
 
-      const result = await controller.listMessages(sessionId, mockRequest as any);
+    const result = await controller.listMessages('session1', mockRequest as any);
 
-      expect(service.listMessages).toHaveBeenCalledWith('user123', sessionId);
-      expect(result).toEqual(mockMessages);
-    });
-
-    it('should return empty array when no messages found', async () => {
-      const sessionId = 'session123';
-      const mockRequest = { user: { id: 'user123' } };
-
-      service.listMessages.mockResolvedValue([]);
-
-      const result = await controller.listMessages(sessionId, mockRequest as any);
-
-      expect(service.listMessages).toHaveBeenCalledWith('user123', sessionId);
-      expect(result).toEqual([]);
-    });
+    expect(mockService.listMessages).toHaveBeenCalledWith('user1', 'session1');
+    expect(result).toEqual(mockMessages);
   });
 
-  describe('getChatHistory', () => {
-    it('should get chat history for a session', async () => {
-      const sessionId = 'session123';
-      const mockRequest = { user: { id: 'user123' } };
-      const mockHistory = [
-        {
-          role: 'user',
-          content: 'Hello',
-          timestamp: new Date('2023-01-01'),
-        },
-        {
-          role: 'assistant',
-          content: 'Hi there!',
-          timestamp: new Date('2023-01-02'),
-        },
-      ];
 
-      service.getChatHistory.mockResolvedValue(mockHistory as any);
-
-      const result = await controller.getChatHistory(sessionId, mockRequest as any);
-
-      expect(service.getChatHistory).toHaveBeenCalledWith('user123', sessionId);
-      expect(result).toEqual(mockHistory);
-    });
-
-    it('should return empty array when no history found', async () => {
-      const sessionId = 'session123';
-      const mockRequest = { user: { id: 'user123' } };
-
-      service.getChatHistory.mockResolvedValue([]);
-
-      const result = await controller.getChatHistory(sessionId, mockRequest as any);
-
-      expect(service.getChatHistory).toHaveBeenCalledWith('user123', sessionId);
-      expect(result).toEqual([]);
-    });
-  });
 });

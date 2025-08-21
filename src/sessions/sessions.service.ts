@@ -13,7 +13,7 @@ export class SessionsService {
   ) { }
 
   async createSession(userId: string, title?: string): Promise<ChatSession> {
-    
+
     // Validate title if provided
     if (title !== undefined && title !== null) {
       if (typeof title !== 'string') {
@@ -40,7 +40,7 @@ export class SessionsService {
   }
 
   async renameSession(userId: string, id: string, title: string): Promise<ChatSession> {
-    
+
     if (!title) {
       throw new BadRequestException('Title is required');
     }
@@ -67,6 +67,9 @@ export class SessionsService {
       }
       return updatedSession;
     } catch (error) {
+      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+        throw error;
+      }
       this.logger.error(`Failed to rename session: ${error.message}`);
       throw new BadRequestException('Failed to rename session');
     }
@@ -97,7 +100,7 @@ export class SessionsService {
   }
 
   async toggleFavorite(userId: string, id: string): Promise<ChatSession> {
-    
+
     if (!id || typeof id !== 'string' || id.trim().length === 0) {
       throw new BadRequestException('Session ID is required');
     }
@@ -111,7 +114,7 @@ export class SessionsService {
       session.favorite = !session.favorite;
       return await this.sessionsRepository.save(session);
     } catch (error) {
-      
+
       this.logger.error(`Failed to toggle favorite: ${error.message}`);
       throw new BadRequestException('Failed to toggle favorite');
     }
@@ -125,7 +128,7 @@ export class SessionsService {
     try {
       return this.sessionsRepository.find({
         where: { userId },
-        order: { createdAt: 'DESC' }, 
+        order: { createdAt: 'DESC' },
         relations: ['messages'],
       });
     } catch (error) {

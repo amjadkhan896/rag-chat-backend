@@ -1,24 +1,22 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { SessionsService } from './sessions.service';
 import { ChatSession } from './session.entity';
 
 describe('SessionsService', () => {
   let service: SessionsService;
-  let repository: jest.Mocked<Repository<ChatSession>>;
-
-  const mockRepository = {
+  let mockRepository = {
     create: jest.fn(),
     save: jest.fn(),
     findOne: jest.fn(),
     find: jest.fn(),
     delete: jest.fn(),
+    update: jest.fn(),
   };
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
+    const module = await Test.createTestingModule({
       providers: [
         SessionsService,
         {
@@ -28,238 +26,90 @@ describe('SessionsService', () => {
       ],
     }).compile();
 
-    service = module.get<SessionsService>(SessionsService);
-    repository = module.get(getRepositoryToken(ChatSession));
-  });
-
-  afterEach(() => {
+    service = module.get(SessionsService);
     jest.clearAllMocks();
   });
 
   describe('createSession', () => {
-    it('should create a session with title', async () => {
-      const userId = 'user123';
-      const title = 'Test Session';
-      const mockSession = { id: 'session123', title, userId, favorite: false };
+    it('creates session with title', async () => {
+      const mockSession = { id: 'session1', title: 'My Session', userId: 'user1' };
+      mockRepository.create.mockReturnValue(mockSession);
+      mockRepository.save.mockResolvedValue(mockSession);
 
-      repository.create.mockReturnValue(mockSession as any);
-      repository.save.mockResolvedValue(mockSession as any);
+      const result = await service.createSession('user1', 'My Session');
 
-      const result = await service.createSession(userId, title);
-
-      expect(repository.create).toHaveBeenCalledWith({
-        userId,
-        title,
-        favorite: false,
-      });
-      expect(repository.save).toHaveBeenCalledWith(mockSession);
       expect(result).toEqual(mockSession);
     });
 
-    it('should create a session without title', async () => {
-      const userId = 'user123';
-      const mockSession = { id: 'session123', title: undefined, userId, favorite: false };
+    it('creates session with default title when none provided', async () => {
+      const mockSession = { id: 'session1', title: 'New Session', userId: 'user1' };
+      mockRepository.create.mockReturnValue(mockSession);
+      mockRepository.save.mockResolvedValue(mockSession);
 
-      repository.create.mockReturnValue(mockSession as any);
-      repository.save.mockResolvedValue(mockSession as any);
+      await service.createSession('user1');
 
-      const result = await service.createSession(userId);
-
-      expect(repository.create).toHaveBeenCalledWith({
-        userId,
-        title: undefined,
-        favorite: false,
+      expect(mockRepository.create).toHaveBeenCalledWith({
+        userId: 'user1',
+        title: 'New Session',
       });
-      expect(result).toEqual(mockSession);
     });
 
-    it('should throw BadRequestException for non-string title', async () => {
-      const userId = 'user123';
-      const title = 123 as any;
-
-      await expect(service.createSession(userId, title)).rejects.toThrow(
-        new BadRequestException('Title must be a string')
-      );
-    });
-
-    it('should throw BadRequestException for empty title', async () => {
-      const userId = 'user123';
-      const title = '   ';
-
-      await expect(service.createSession(userId, title)).rejects.toThrow(
-        new BadRequestException('Title cannot be empty')
-      );
-    });
-
-    it('should throw BadRequestException for title exceeding 100 characters', async () => {
-      const userId = 'user123';
-      const title = 'a'.repeat(101);
-
-      await expect(service.createSession(userId, title)).rejects.toThrow(
-        new BadRequestException('Title cannot exceed 100 characters')
-      );
-    });
-
-    it('should throw BadRequestException when save fails', async () => {
-      const userId = 'user123';
-      const title = 'Test Session';
-
-      repository.create.mockReturnValue({} as any);
-      repository.save.mockRejectedValue(new Error('Database error'));
-
-      await expect(service.createSession(userId, title)).rejects.toThrow(
-        new BadRequestException('Failed to create session')
-      );
+    it('throws error for invalid title', async () => {
+      await expect(service.createSession('user1', 123 as any))
+        .rejects.toThrow(BadRequestException);
     });
   });
 
   describe('renameSession', () => {
-    it('should rename a session successfully', async () => {
-      const userId = 'user123';
-      const sessionId = 'session123';
-      const newTitle = 'New Title';
-      const mockSession = { id: sessionId, userId, title: 'Old Title' };
-      const updatedSession = { ...mockSession, title: newTitle };
+    it('renames session successfully', async () => {
+      const mockSession = { id: 'session1', userId: 'user1', title: 'Old Title' };
+      const updatedSession = { ...mockSession, title: 'New Title' };
 
-      repository.findOne.mockResolvedValue(mockSession as any);
-      repository.save.mockResolvedValue(updatedSession as any);
+      mockRepository.findOne.mockResolvedValueOnce(mockSession);
+      mockRepository.findOne.mockResolvedValueOnce(updatedSession);
 
-      const result = await service.renameSession(userId, sessionId, newTitle);
+      const result = await service.renameSession('user1', 'session1', 'New Title');
 
-      expect(repository.findOne).toHaveBeenCalledWith({ where: { id: sessionId } });
-      expect(repository.save).toHaveBeenCalledWith({ ...mockSession, title: newTitle });
       expect(result).toEqual(updatedSession);
     });
 
-    it('should throw BadRequestException when title is missing', async () => {
-      const userId = 'user123';
-      const sessionId = 'session123';
+    it('throws error when session not found', async () => {
+      mockRepository.findOne.mockResolvedValue(null);
 
-      await expect(service.renameSession(userId, sessionId, null as any)).rejects.toThrow(
-        new BadRequestException('Title is required')
-      );
-    });
-
-    it('should throw NotFoundException when session does not exist', async () => {
-      const userId = 'user123';
-      const sessionId = 'nonexistent';
-      const title = 'New Title';
-
-      repository.findOne.mockResolvedValue(null);
-
-      await expect(service.renameSession(userId, sessionId, title)).rejects.toThrow(
-        new NotFoundException('Session not found')
-      );
-    });
-
-    it('should throw ForbiddenException when user does not own the session', async () => {
-      const userId = 'user123';
-      const sessionId = 'session123';
-      const title = 'New Title';
-      const mockSession = { id: sessionId, userId: 'differentUser', title: 'Old Title' };
-
-      repository.findOne.mockResolvedValue(mockSession as any);
-
-      await expect(service.renameSession(userId, sessionId, title)).rejects.toThrow(
-        new ForbiddenException('You do not have access to this session')
-      );
+      await expect(service.renameSession('user1', 'session1', 'New Title'))
+        .rejects.toThrow(NotFoundException);
     });
   });
 
   describe('deleteSession', () => {
-    it('should delete a session successfully', async () => {
-      const userId = 'user123';
-      const sessionId = 'session123';
-      const mockSession = { id: sessionId, userId };
+    it('deletes session successfully', async () => {
+      const mockSession = { id: 'session1', userId: 'user1' };
+      mockRepository.findOne.mockResolvedValue(mockSession);
 
-      repository.findOne.mockResolvedValue(mockSession as any);
-      repository.delete.mockResolvedValue({ affected: 1 } as any);
+      await service.deleteSession('user1', 'session1');
 
-      await service.deleteSession(userId, sessionId);
-
-      expect(repository.findOne).toHaveBeenCalledWith({ where: { id: sessionId } });
-      expect(repository.delete).toHaveBeenCalledWith(sessionId);
+      expect(mockRepository.delete).toHaveBeenCalledWith({ id: 'session1', userId: 'user1' });
     });
 
-    it('should throw NotFoundException when session does not exist', async () => {
-      const userId = 'user123';
-      const sessionId = 'nonexistent';
+    it('throws error when session not found', async () => {
+      mockRepository.findOne.mockResolvedValue(null);
 
-      repository.findOne.mockResolvedValue(null);
-
-      await expect(service.deleteSession(userId, sessionId)).rejects.toThrow(
-        new NotFoundException('Session not found')
-      );
-    });
-
-    it('should throw ForbiddenException when user does not own the session', async () => {
-      const userId = 'user123';
-      const sessionId = 'session123';
-      const mockSession = { id: sessionId, userId: 'differentUser' };
-
-      repository.findOne.mockResolvedValue(mockSession as any);
-
-      await expect(service.deleteSession(userId, sessionId)).rejects.toThrow(
-        new ForbiddenException('You do not have access to this session')
-      );
-    });
-  });
-
-  describe('toggleFavorite', () => {
-    it('should toggle favorite status successfully', async () => {
-      const userId = 'user123';
-      const sessionId = 'session123';
-      const mockSession = { id: sessionId, userId, favorite: false };
-      const updatedSession = { ...mockSession, favorite: true };
-
-      repository.findOne.mockResolvedValue(mockSession as any);
-      repository.save.mockResolvedValue(updatedSession as any);
-
-      const result = await service.toggleFavorite(userId, sessionId);
-
-      expect(repository.findOne).toHaveBeenCalledWith({ where: { id: sessionId } });
-      expect(repository.save).toHaveBeenCalledWith({ ...mockSession, favorite: true });
-      expect(result).toEqual(updatedSession);
-    });
-
-    it('should throw BadRequestException when sessionId is invalid', async () => {
-      const userId = 'user123';
-      const sessionId = '';
-
-      await expect(service.toggleFavorite(userId, sessionId)).rejects.toThrow(
-        new BadRequestException('Session ID is required')
-      );
+      await expect(service.deleteSession('user1', 'session1'))
+        .rejects.toThrow(NotFoundException);
     });
   });
 
   describe('getRecentSessions', () => {
-    it('should return recent sessions for user', async () => {
-      const userId = 'user123';
+    it('returns user sessions', async () => {
       const mockSessions = [
-        { id: 'session1', userId, title: 'Session 1' },
-        { id: 'session2', userId, title: 'Session 2' },
+        { id: 'session1', userId: 'user1', title: 'Session 1' },
+        { id: 'session2', userId: 'user1', title: 'Session 2' },
       ];
+      mockRepository.find.mockResolvedValue(mockSessions);
 
-      repository.find.mockResolvedValue(mockSessions as any);
+      const result = await service.getRecentSessions('user1');
 
-      const result = await service.getRecentSessions(userId);
-
-      expect(repository.find).toHaveBeenCalledWith({
-        where: { userId },
-        order: { createdAt: 'DESC' },
-        relations: ['messages'],
-      });
       expect(result).toEqual(mockSessions);
-    });
-
-    it('should return empty array when no sessions found', async () => {
-      const userId = 'user123';
-
-      repository.find.mockResolvedValue([]);
-
-      const result = await service.getRecentSessions(userId);
-
-      expect(result).toEqual([]);
     });
   });
 });

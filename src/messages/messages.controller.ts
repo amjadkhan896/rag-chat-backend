@@ -31,12 +31,4 @@ export class MessagesController {
   listMessages(@Param('sessionId') sessionId: string, @Req() req: any) {
     return this.messagesService.listMessages(req.user.id, sessionId);
   }
-
-  @Get(':sessionId/chat')
-  @ApiOperation({ summary: 'Get chat history for a session' })
-  @ApiParam({ name: 'sessionId', description: 'Session ID (UUID)' })
-  @ApiOkResponse({ description: 'Chat history with role, content, and timestamp' })
-  getChatHistory(@Param('sessionId') sessionId: string, @Req() req: any) {
-    return this.messagesService.getChatHistory(req.user.id, sessionId);
-  }
 }

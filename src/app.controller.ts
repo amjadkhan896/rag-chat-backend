@@ -7,10 +7,10 @@ import { AppService } from './app.service';
 export class AppController {
   constructor(private readonly appService: AppService) { }
 
-  @Get()
+  @Get('/healthCheck')
   @ApiOperation({ summary: 'Health check' })
   @ApiOkResponse({ description: 'Returns  OK' })
-  getHealth(): string {
-    return this.appService.getHealth();
+  getHealthCheck(): string {
+    return this.appService.getHealthCheck();
   }
 }

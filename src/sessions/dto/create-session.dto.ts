@@ -9,5 +9,3 @@ export class CreateSessionDto {
   @MaxLength(100, { message: 'Title cannot exceed 100 characters' })
   title?: string;
 }
-
-
