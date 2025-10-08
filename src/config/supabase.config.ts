@@ -10,10 +10,7 @@ export class SupabaseConfig {
     const supabaseKey = this.configService.get<string>('SUPABASE_SERVICE_ROLE_KEY');
 
     if (!supabaseUrl || !supabaseKey) {
-      console.warn('Supabase URL and Service Role Key are not configured. RAG features will be disabled.');
-      // Create a mock client for now
-      this.supabaseClient = null as any;
-      return;
+      throw new Error('Supabase URL and Service Role Key are required for RAG functionality');
     }
 
     this.supabaseClient = createClient(supabaseUrl, supabaseKey, {
