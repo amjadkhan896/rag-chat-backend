@@ -4,12 +4,12 @@ import { MessagesService } from './messages.service';
 import { MessagesController } from './messages.controller';
 import { ChatSession } from '../sessions/session.entity';
 import { ChatMessage } from './message.entity';
-import { OpenaiModule } from '../openai/openai.module';
+import { RagModule } from '../rag/rag.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([ChatSession, ChatMessage]),
-    OpenaiModule
+    RagModule
   ],
   providers: [MessagesService],
   controllers: [MessagesController]

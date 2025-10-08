@@ -8,7 +8,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { WinstonModule } from 'nest-winston';
 import { SessionsModule } from './sessions/sessions.module';
 import { MessagesModule } from './messages/messages.module';
-import { OpenaiModule } from './openai/openai.module';
+import { DocumentsModule } from './documents/documents.module';
 import { AuthMiddleware } from './auth/auth.middleware';
 import { ApiKeyMiddleware } from './middleware/api-key.middleware';
 
@@ -34,7 +34,7 @@ import { winstonConfig } from './logger/winston-logger.config';
     }),
     SessionsModule,
     MessagesModule,
-    OpenaiModule,
+    DocumentsModule,
   ],
   controllers: [AppController],
   providers: [

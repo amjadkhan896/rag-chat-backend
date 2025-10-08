@@ -4,7 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ChatSession } from '../sessions/session.entity';
 import { ChatMessage } from './message.entity';
-import { OpenaiService } from '../openai/openai.service';
+import { RagChainService } from '../rag/rag-chain.service';
 
 export type MessageRecord = ChatMessage;
 
@@ -16,7 +16,7 @@ export class MessagesService {
     private readonly sessionsRepository: Repository<ChatSession>,
     @InjectRepository(ChatMessage)
     private readonly messagesRepository: Repository<ChatMessage>,
-    private readonly openaiService: OpenaiService,
+    private readonly ragChainService: RagChainService,
   ) { }
 
   private async assertOwnedSession(userId: string, sessionId: string): Promise<void> {
@@ -50,37 +50,28 @@ export class MessagesService {
     });
     const savedUserMessage = await this.messagesRepository.save(userMessage);
 
-    // If user message, generate AI response
+    // If user message, generate AI response using RAG
     if (payload.role === 'user') {
       try {
-        // Get conversation history for context
-        const previousMessages = await this.messagesRepository.find({
-          where: { session: { id: sessionId } },
-          order: { createdAt: 'ASC' },
-          take: 10, // Last 10 messages for context
-        });
+        // Generate AI response using RAG chain
+        const aiResponse = await this.ragChainService.generateResponse(payload.content);
 
-        // Build conversation context
-        const conversationHistory = previousMessages.map(msg =>
-          `${msg.role}: ${msg.content}`
-        ).join('\n');
-
-        const prompt = `Previous conversation:\n${conversationHistory}\n\nPlease respond to the latest user message.`;
-
-        // Generate AI response
-        const aiResponse = await this.openaiService.generateResponse(prompt);
-       console.log(JSON.stringify(aiResponse), 'wwwww')
         // Save AI response
         const assistantMessage = this.messagesRepository.create({
           role: 'assistant',
           content: aiResponse,
-          metadata: { generated: true, model: 'gpt-5o' },
+          metadata: {
+            generated: true,
+            model: 'gpt-4o',
+            ragEnabled: true,
+            timestamp: new Date().toISOString()
+          },
           session: session!,
         });
         await this.messagesRepository.save(assistantMessage);
 
       } catch (error) {
-        console.error('Failed to generate AI response:', error);
+        console.error('Failed to generate RAG response:', error);
         // Continue without AI response if it fails
       }
     }
@@ -109,5 +100,55 @@ export class MessagesService {
       content: msg.content,
       timestamp: msg.createdAt,
     }));
+  }
+
+  /**
+   * Generate streaming response using RAG
+   */
+  async generateStreamingResponse(
+    userId: string,
+    sessionId: string,
+    question: string,
+    onChunk: (chunk: string) => void
+  ): Promise<void> {
+    await this.assertOwnedSession(userId, sessionId);
+
+    try {
+      // Save user message first
+      const session = await this.sessionsRepository.findOne({ where: { id: sessionId } });
+      const userMessage = this.messagesRepository.create({
+        role: 'user',
+        content: question,
+        metadata: { streaming: true },
+        session: session!,
+      });
+      await this.messagesRepository.save(userMessage);
+
+      // Generate streaming response
+      let fullResponse = '';
+      await this.ragChainService.generateStreamingResponse(question, (chunk) => {
+        fullResponse += chunk;
+        onChunk(chunk);
+      });
+
+      // Save the complete assistant response
+      const assistantMessage = this.messagesRepository.create({
+        role: 'assistant',
+        content: fullResponse,
+        metadata: {
+          generated: true,
+          model: 'gpt-4o',
+          ragEnabled: true,
+          streaming: true,
+          timestamp: new Date().toISOString()
+        },
+        session: session!,
+      });
+      await this.messagesRepository.save(assistantMessage);
+
+    } catch (error) {
+      console.error('Failed to generate streaming RAG response:', error);
+      throw error;
+    }
   }
 }
